@@ -1,182 +1,266 @@
 import React, { useState, useEffect } from 'react';
-import { FaChevronLeft, FaChevronRight, FaExpand } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaExpand, FaTimes } from 'react-icons/fa';
 
 interface ImageGalleryProps {
   images: string[];
   alt?: string;
   className?: string;
+  thumbnailPosition?: 'bottom' | 'left' | 'right' | 'none';
   showThumbnails?: boolean;
+  showArrows?: boolean;
+  showFullscreenButton?: boolean;
   autoPlay?: boolean;
   autoPlayInterval?: number;
-  initialIndex?: number;
+  maxHeight?: string;
+  aspectRatio?: string;
+  onImageChange?: (index: number) => void;
 }
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
   alt = 'Gallery image',
   className = '',
+  thumbnailPosition = 'bottom',
   showThumbnails = true,
+  showArrows = true,
+  showFullscreenButton = true,
   autoPlay = false,
-  autoPlayInterval = 5000,
-  initialIndex = 0,
+  autoPlayInterval = 3000,
+  maxHeight = '500px',
+  aspectRatio = '16/9',
+  onImageChange,
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   
-  // Handle auto-play functionality
-  useEffect(() => {
-    if (!autoPlay || isLightboxOpen) return;
-    
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, autoPlayInterval);
-    
-    return () => clearInterval(interval);
-  }, [autoPlay, autoPlayInterval, images.length, isLightboxOpen]);
-  
+  // If images array is empty, show placeholder
+  if (images.length === 0) {
+    return (
+      <div 
+        className={`bg-gray-200 flex items-center justify-center rounded-lg ${className}`}
+        style={{ maxHeight, aspectRatio }}
+      >
+        <p className="text-gray-500">No images available</p>
+      </div>
+    );
+  }
+
   // Navigate to previous image
   const prevImage = () => {
-    setCurrentIndex((prevIndex) => 
-      prevIndex === 0 ? images.length - 1 : prevIndex - 1
-    );
+    const newIndex = currentImageIndex === 0 ? images.length - 1 : currentImageIndex - 1;
+    setCurrentImageIndex(newIndex);
+    if (onImageChange) onImageChange(newIndex);
   };
-  
+
   // Navigate to next image
   const nextImage = () => {
-    setCurrentIndex((prevIndex) => 
-      (prevIndex + 1) % images.length
-    );
+    const newIndex = currentImageIndex === images.length - 1 ? 0 : currentImageIndex + 1;
+    setCurrentImageIndex(newIndex);
+    if (onImageChange) onImageChange(newIndex);
   };
-  
-  // Navigate to specific image by index
-  const goToImage = (index: number) => {
-    setCurrentIndex(index);
+
+  // Select specific image
+  const selectImage = (index: number) => {
+    setCurrentImageIndex(index);
+    if (onImageChange) onImageChange(index);
   };
-  
-  // Open and close lightbox
-  const openLightbox = () => {
-    setIsLightboxOpen(true);
-    document.body.style.overflow = 'hidden';
+
+  // Toggle fullscreen mode
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
-  
-  const closeLightbox = () => {
-    setIsLightboxOpen(false);
-    document.body.style.overflow = 'auto';
+
+  // Handle touch events for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
   };
-  
-  // If no images, don't render anything
-  if (!images.length) return null;
-  
-  return (
-    <div className={`relative ${className}`}>
-      {/* Main image container */}
-      <div className="relative overflow-hidden rounded-lg bg-gray-100">
-        <img
-          src={images[currentIndex]}
-          alt={`${alt} ${currentIndex + 1}`}
-          className="w-full h-64 md:h-96 object-cover"
-        />
-        
-        {/* Navigation arrows */}
-        <button
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isSwipeLeft = distance > 50;
+    const isSwipeRight = distance < -50;
+    
+    if (isSwipeLeft) {
+      nextImage();
+    }
+    
+    if (isSwipeRight) {
+      prevImage();
+    }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Auto play functionality
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (autoPlay && !isFullscreen) {
+      interval = setInterval(() => {
+        nextImage();
+      }, autoPlayInterval);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoPlay, autoPlayInterval, currentImageIndex, isFullscreen]);
+
+  // Thumbnail layout classes
+  const getThumbnailLayoutClasses = () => {
+    switch (thumbnailPosition) {
+      case 'left':
+        return 'flex-row';
+      case 'right':
+        return 'flex-row-reverse';
+      case 'bottom':
+      default:
+        return 'flex-col';
+    }
+  };
+
+  // Thumbnail container classes
+  const getThumbnailContainerClasses = () => {
+    switch (thumbnailPosition) {
+      case 'left':
+      case 'right':
+        return 'flex flex-col h-full overflow-auto p-2 gap-2';
+      case 'bottom':
+      default:
+        return 'flex flex-row overflow-x-auto p-2 gap-2';
+    }
+  };
+
+  // Function to render arrows
+  const renderArrows = () => {
+    if (!showArrows) return null;
+    
+    return (
+      <>
+        <button 
           onClick={prevImage}
-          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full p-2 text-gray-800 focus:outline-none"
+          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full z-10"
           aria-label="Previous image"
         >
-          <FaChevronLeft size={16} />
+          <FaChevronLeft />
         </button>
-        
-        <button
+        <button 
           onClick={nextImage}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full p-2 text-gray-800 focus:outline-none"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full z-10"
           aria-label="Next image"
         >
-          <FaChevronRight size={16} />
+          <FaChevronRight />
         </button>
-        
-        {/* Expand button */}
-        <button
-          onClick={openLightbox}
-          className="absolute top-2 right-2 bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full p-2 text-gray-800 focus:outline-none"
-          aria-label="Open fullscreen gallery"
-        >
-          <FaExpand size={16} />
-        </button>
-        
-        {/* Image counter */}
-        <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-sm px-2 py-1 rounded-full">
-          {currentIndex + 1} / {images.length}
-        </div>
-      </div>
-      
-      {/* Thumbnails */}
-      {showThumbnails && images.length > 1 && (
-        <div className="flex mt-2 space-x-2 overflow-x-auto pb-1">
-          {images.map((image, index) => (
-            <button
-              key={index}
-              onClick={() => goToImage(index)}
-              className={`flex-shrink-0 w-16 h-16 focus:outline-none ${
-                currentIndex === index
-                  ? 'ring-2 ring-primary'
-                  : 'opacity-60 hover:opacity-100'
-              }`}
-              aria-label={`View image ${index + 1}`}
-              aria-current={currentIndex === index}
-            >
-              <img
-                src={image}
-                alt={`Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover rounded"
-              />
-            </button>
-          ))}
-        </div>
-      )}
-      
-      {/* Lightbox */}
-      {isLightboxOpen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
+      </>
+    );
+  };
+
+  // Function to render fullscreen button
+  const renderFullscreenButton = () => {
+    if (!showFullscreenButton) return null;
+    
+    return (
+      <button 
+        onClick={toggleFullscreen}
+        className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full z-10"
+        aria-label="Toggle fullscreen"
+      >
+        {isFullscreen ? <FaTimes /> : <FaExpand />}
+      </button>
+    );
+  };
+
+  // Function to render thumbnails
+  const renderThumbnails = () => {
+    if (!showThumbnails) return null;
+    
+    return (
+      <div className={getThumbnailContainerClasses()}>
+        {images.map((image, index) => (
           <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 focus:outline-none"
-            aria-label="Close fullscreen gallery"
+            key={index}
+            onClick={() => selectImage(index)}
+            className={`
+              flex-shrink-0 border-2 rounded overflow-hidden transition-all
+              ${index === currentImageIndex ? 'border-blue-500' : 'border-transparent hover:border-gray-300'}
+              ${thumbnailPosition === 'left' || thumbnailPosition === 'right' ? 'w-16 h-16' : 'w-20 h-14'}
+            `}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-          
-          <div className="relative max-w-5xl w-full">
-            <img
-              src={images[currentIndex]}
-              alt={`${alt} ${currentIndex + 1} (fullscreen)`}
-              className="w-full max-h-[80vh] object-contain"
+            <img 
+              src={image} 
+              alt={`Thumbnail ${index + 1}`}
+              className="w-full h-full object-cover"
             />
-            
-            <button
-              onClick={prevImage}
-              className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full p-3 text-white focus:outline-none"
-              aria-label="Previous image (fullscreen)"
-            >
-              <FaChevronLeft size={20} />
-            </button>
-            
-            <button
-              onClick={nextImage}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full p-3 text-white focus:outline-none"
-              aria-label="Next image (fullscreen)"
-            >
-              <FaChevronRight size={20} />
-            </button>
-            
-            {/* Lightbox image counter */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-3 py-1 rounded-full">
-              {currentIndex + 1} / {images.length}
-            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  // Fullscreen gallery
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+        <div
+          className="w-full h-full relative"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <img 
+            src={images[currentImageIndex]} 
+            alt={`${alt} ${currentImageIndex + 1}`}
+            className="w-full h-full object-contain"
+          />
+          {renderArrows()}
+          {renderFullscreenButton()}
+          
+          {/* Image counter */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full">
+            {currentImageIndex + 1} / {images.length}
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-lg overflow-hidden ${className}`}>
+      <div className={`flex ${getThumbnailLayoutClasses()}`}>
+        {/* Main image container */}
+        <div 
+          className="relative flex-grow"
+          style={{ maxHeight, aspectRatio }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <img 
+            src={images[currentImageIndex]} 
+            alt={`${alt} ${currentImageIndex + 1}`}
+            className="w-full h-full object-cover"
+          />
+          {renderArrows()}
+          {renderFullscreenButton()}
+          
+          {/* Image counter */}
+          <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-sm">
+            {currentImageIndex + 1} / {images.length}
+          </div>
+        </div>
+        
+        {/* Thumbnails */}
+        {renderThumbnails()}
+      </div>
     </div>
   );
 };
