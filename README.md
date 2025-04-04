@@ -1,105 +1,143 @@
-# 🏨 Laaerberg Apart Hotel
+# Laaerberg Apart Hotel
 
-A modern hotel booking system for Laaerberg Apart Hotel in Vienna. This project includes a responsive web application for hotel guests to browse apartments, make reservations, and for staff to manage bookings.
+Welcome to the Laaerberg Apart Hotel project repository. This is a modern responsive hotel booking website with an admin panel for managing apartments, reservations, and settings.
 
-## 📋 Project Structure
+## 🌟 Features
 
-The project is divided into two main components:
+- **Public Website**
+  - Homepage with featured apartments and search
+  - Apartment listings with filters
+  - Detailed apartment pages with image galleries
+  - Booking system with multi-step form
+  - Contact page
+  - Responsive design for all devices
 
-- **Frontend**: A React application with TypeScript and Tailwind CSS
-- **Backend**: A Node.js API with Express and MongoDB (coming soon)
-
-## 🚀 Features
-
-### 🌐 Guest Features
-- Browse available apartments with detailed information
-- Search and filter apartments by various criteria
-- Book apartments with a multi-step reservation process
-- Contact hotel staff through a contact form
-- Multilingual support (English, German)
-- Responsive design for all device sizes
-
-### 👨‍💼 Admin Features
-- Secure admin login
-- Dashboard with statistics and recent reservations
-- Manage apartments (add, edit, delete)
-- Handle reservations (confirm, cancel)
-- Export data and reports
+- **Admin Dashboard**
+  - Secure login and authentication
+  - Dashboard with statistics
+  - Apartment management (add, edit, delete)
+  - Reservation management and booking history
+  - User management
+  - Settings and configurations
 
 ## 🛠️ Technology Stack
 
-### Frontend
-- React 18 with TypeScript
-- React Router for navigation
-- Tailwind CSS for styling
-- i18next for internationalization
-- Axios for API communication
+- **Frontend**
+  - React with TypeScript
+  - React Router for navigation
+  - Tailwind CSS for styling
+  - i18next for multilingual support
+  - React Icons for icon components
 
-### Backend (Coming Soon)
-- Node.js with Express
-- MongoDB for data storage
-- JWT for authentication
-- RESTful API design
+- **State Management & API**
+  - Context API for global state
+  - Axios for API requests
+  - Mock API for development
 
-## 🏁 Getting Started
+## 📁 Project Structure
 
-### Prerequisites
-- Node.js (v14 or higher)
-- npm or yarn
-- Git
+```
+frontend/
+├── public/           # Static assets
+├── src/
+│   ├── components/   # Reusable UI components
+│   ├── pages/        # Page components
+│   │   ├── Admin/    # Admin panel pages
+│   │   └── Booking/  # Booking flow pages
+│   ├── utils/        # Utility functions and helpers
+│   │   ├── api.ts    # API configuration
+│   │   ├── mockApi.ts # Mock API for development
+│   │   ├── mockData.ts # Mock data helpers
+│   │   ├── helpers.ts # Helper functions
+│   │   ├── hooks.ts  # Custom React hooks
+│   │   ├── types.ts  # TypeScript interfaces
+│   │   └── AuthContext.tsx # Authentication context
+│   ├── App.tsx       # Main App component
+│   ├── App.css       # Global styles
+│   ├── index.tsx     # Entry point
+│   ├── index.css     # Global CSS
+│   └── i18n.ts       # i18n configuration
+├── tailwind.config.js # Tailwind configuration
+├── tsconfig.json      # TypeScript configuration
+└── package.json       # Dependencies
+```
 
-### Frontend Setup
+## 🧩 Components
+
+### Core Components
+- **Button** - Reusable button with variants
+- **Card** - Flexible card component for content
+- **Input** - Form input with validation
+- **Alert** - Notification component
+- **Modal** - Popup dialog component
+- **Loading** - Loading spinner component
+- **Pagination** - Pagination control
+
+### Feature Components
+- **Header & Footer** - Site navigation and footer
+- **SearchForm** - Apartment search form
+- **ApartmentCard** - Card for apartment listings
+- **DateRangePicker** - Date picker for bookings
+- **ImageGallery** - Image carousel for apartments
+- **Testimonial** - Customer review component
+- **Breadcrumbs** - Navigation breadcrumbs
+
+### Admin Components
+- **AdminLayout** - Layout for admin area
+- **StatsCard** - Statistics display card
+- **Tabs** - Tab navigation component
+- **ApartmentForm** - Form for adding/editing apartments
+
+## 📱 Pages
+
+### Public Pages
+- **Home** - Landing page
+- **Apartments** - Apartment listings
+- **ApartmentDetail** - Single apartment view
+- **Contact** - Contact page
+- **Reservation** - Booking process
+- **BookingConfirmation** - Booking confirmation
+- **NotFound** - 404 page
+
+### Admin Pages
+- **AdminLogin** - Admin login
+- **Dashboard** - Admin dashboard
+- **Apartments** - Apartment management
+- **Reservations** - Reservation management
+
+## 🚀 Getting Started
+
 1. Clone the repository
 ```bash
 git clone https://github.com/ariofarmani/laaerbergHotel.git
-cd laaerbergHotel/frontend
+cd laaerbergHotel
 ```
 
 2. Install dependencies
 ```bash
+cd frontend
 npm install
-# or
-yarn install
 ```
 
 3. Start the development server
 ```bash
 npm start
-# or
-yarn start
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## 🌍 Internationalization
 
-For more detailed information about the frontend, check the [frontend README](/frontend/README.md).
+The application supports multiple languages using i18next. Currently, it includes:
+- English
+- German
 
-### Backend Setup (Coming Soon)
-Information about setting up the backend will be added when it's available.
+## 🔒 Authentication
 
-## 📱 Responsive Design
+Authentication is managed through the AuthContext provider. For development, mock authentication is used. In production, this would be connected to a real authentication API.
 
-The application is designed to work seamlessly across all device sizes:
-- Mobile phones
-- Tablets
-- Desktops
-- Large screens
-
-## 🌐 Deployment
-
-Detailed deployment instructions will be provided in the future.
-
-## 🧪 Testing
-
-```bash
-# Run frontend tests
-cd frontend
-npm test
-```
-
-## 👥 Contributors
-
-- Ali Farmani
-
-## 📄 License
+## 📝 License
 
 This project is licensed under the MIT License.
+
+## 👨‍💻 Contributed by
+
+- Ali Farmani - [GitHub](https://github.com/ariofarmani)
