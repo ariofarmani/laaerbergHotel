@@ -1,206 +1,199 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from './types';
+import { useNavigate } from 'react-router-dom';
 import { api } from './api';
-import { mockLogin, mockLogout } from './mockApi';
+import { useLocalStorage } from './hooks';
 import { shouldUseMockData } from './mockData';
 
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  error: string | null;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
-  logout: () => Promise<void>;
-  clearError: () => void;
+// User interface
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'staff' | 'user';
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
 }
 
+// Auth context interface
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  checkAuth: () => Promise<boolean>;
+}
+
+// Create context with default values
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isAuthenticated: false,
+  isAdmin: false,
+  isLoading: true,
+  login: async () => false,
+  logout: () => {},
+  checkAuth: async () => false,
+});
+
+// Hook to use auth context
+export const useAuth = () => useContext(AuthContext);
+
+// Auth provider props
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
+// Auth provider component
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useLocalStorage<User | null>('laaerberg_user', null);
+  const [token, setToken] = useLocalStorage<string | null>('laaerberg_token', null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const isAuthenticated = !!user;
-  
-  // Check if user is already logged in on mount
+  const navigate = useNavigate();
+
+  // Check if the user is authenticated on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem('authToken');
-        
-        if (!token) {
-          setIsLoading(false);
-          return;
-        }
-        
-        if (shouldUseMockData()) {
-          // Mock authentication for development
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-            setUser(JSON.parse(storedUser));
-          }
-        } else {
-          // Real API authentication
-          const response = await api.get('/auth/me');
-          setUser(response.data.user);
-        }
-      } catch (err) {
-        // Clear invalid auth data
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        console.error('Authentication check failed:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     checkAuth();
   }, []);
-  
+
   // Login function
-  const login = async (email: string, password: string, rememberMe = false): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
-    
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      let userData: User;
-      let token: string;
+      setIsLoading(true);
       
-      if (shouldUseMockData()) {
-        // Mock login for development
-        const mockResponse = await mockLogin(email, password);
-        
-        if (!mockResponse.success) {
-          setError(mockResponse.message || 'Invalid email or password');
-          setIsLoading(false);
-          return false;
-        }
-        
-        userData = mockResponse.user;
-        token = mockResponse.token;
-      } else {
-        // Real API login
-        const response = await api.post('/auth/login', { email, password });
-        userData = response.data.user;
-        token = response.data.token;
-      }
+      // Call login API
+      const response = await api.post('/auth/login', { email, password });
       
-      // Save auth data
-      localStorage.setItem('authToken', token);
-      
-      if (rememberMe) {
-        localStorage.setItem('user', JSON.stringify(userData));
-      }
-      
+      // Set user and token in state and local storage
+      const { user: userData, token: authToken } = response.data;
       setUser(userData);
+      setToken(authToken);
+      
+      // Set auth header for future requests
+      api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+      
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = () => {
+    // Clear user and token
+    setUser(null);
+    setToken(null);
+    
+    // Remove auth header
+    delete api.defaults.headers.common['Authorization'];
+    
+    // Redirect to home page
+    navigate('/');
+  };
+
+  // Check auth function
+  const checkAuth = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      
+      // If using mock data, check local storage
+      if (shouldUseMockData()) {
+        setIsLoading(false);
+        return !!user;
+      }
+      
+      // If no token, not authenticated
+      if (!token) {
+        setIsLoading(false);
+        return false;
+      }
+      
+      // Set auth header
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Call verify token API
+      const response = await api.get('/auth/verify');
+      const { user: userData } = response.data;
+      
+      // Update user data if needed
+      if (JSON.stringify(userData) !== JSON.stringify(user)) {
+        setUser(userData);
+      }
+      
       setIsLoading(false);
       return true;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
-      setError(errorMessage);
+    } catch (error) {
+      // Token verification failed, logout
+      console.error('Auth verification failed:', error);
+      setUser(null);
+      setToken(null);
+      delete api.defaults.headers.common['Authorization'];
       setIsLoading(false);
       return false;
     }
   };
+
+  // Check if user is admin
+  const isAdmin = !!user && user.role === 'admin';
   
-  // Logout function
-  const logout = async (): Promise<void> => {
-    setIsLoading(true);
-    
-    try {
-      if (shouldUseMockData()) {
-        // Mock logout for development
-        await mockLogout();
-      } else {
-        // Real API logout
-        await api.post('/auth/logout');
-      }
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      // Clear auth data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      setUser(null);
-      setIsLoading(false);
-    }
-  };
-  
-  // Clear error
-  const clearError = () => {
-    setError(null);
-  };
-  
-  // Context value
-  const value = {
-    user,
-    isLoading,
-    isAuthenticated,
-    error,
-    login,
-    logout,
-    clearError,
-  };
-  
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Check if user is authenticated
+  const isAuthenticated = !!user;
+
+  return (
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        isAuthenticated, 
+        isAdmin, 
+        isLoading, 
+        login, 
+        logout, 
+        checkAuth 
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Custom hook to use the auth context
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+// Protect admin routes
+export const AdminRoute: React.FC<AuthProviderProps> = ({ children }) => {
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !isAdmin)) {
+      navigate('/admin/login');
+    }
+  }, [isLoading, isAuthenticated, isAdmin, navigate]);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
-  
-  return context;
+
+  return isAuthenticated && isAdmin ? <>{children}</> : null;
 };
 
-// Higher-order component for protected routes
-export const withAuth = <P extends object>(
-  Component: React.ComponentType<P>,
-  requireAdmin = false
-): React.FC<P> => {
-  const WithAuth: React.FC<P> = (props) => {
-    const { isAuthenticated, isLoading, user } = useAuth();
-    
-    if (isLoading) {
-      return <div className="flex justify-center items-center h-64">Loading...</div>;
+// Protect authenticated routes
+export const ProtectedRoute: React.FC<AuthProviderProps> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate('/login');
     }
-    
-    if (!isAuthenticated) {
-      return (
-        <div className="text-center p-4">
-          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-          <p className="mb-4">You need to be logged in to view this page.</p>
-          <a href="/admin/login" className="text-primary hover:underline">
-            Login
-          </a>
-        </div>
-      );
-    }
-    
-    if (requireAdmin && user?.role !== 'admin') {
-      return (
-        <div className="text-center p-4">
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="mb-4">You don't have permission to access this page.</p>
-          <a href="/" className="text-primary hover:underline">
-            Return to Home
-          </a>
-        </div>
-      );
-    }
-    
-    return <Component {...props} />;
-  };
-  
-  return WithAuth;
+  }, [isLoading, isAuthenticated, navigate]);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  return isAuthenticated ? <>{children}</> : null;
 };
 
 export default AuthContext;
