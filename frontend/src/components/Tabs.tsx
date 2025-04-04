@@ -1,119 +1,140 @@
 import React, { useState, useEffect } from 'react';
 
-interface Tab {
+export interface TabItem {
   id: string;
   label: string;
-  content: React.ReactNode;
   icon?: React.ReactNode;
+  badge?: number | string;
   disabled?: boolean;
 }
 
 interface TabsProps {
-  tabs: Tab[];
-  defaultActiveTab?: string;
-  orientation?: 'horizontal' | 'vertical';
-  variant?: 'default' | 'pills' | 'underline';
-  className?: string;
-  onChange?: (tabId: string) => void;
+  tabs: TabItem[];
+  activeTab?: string;
+  onChange: (tabId: string) => void;
+  variant?: 'underline' | 'pills' | 'buttons';
   size?: 'sm' | 'md' | 'lg';
-  stretch?: boolean;
+  fullWidth?: boolean;
+  className?: string;
   contentClassName?: string;
+  children?: React.ReactNode;
 }
 
 const Tabs: React.FC<TabsProps> = ({
   tabs,
-  defaultActiveTab,
-  orientation = 'horizontal',
-  variant = 'default',
-  className = '',
+  activeTab: externalActiveTab,
   onChange,
+  variant = 'underline',
   size = 'md',
-  stretch = false,
+  fullWidth = false,
+  className = '',
   contentClassName = '',
+  children,
 }) => {
-  const [activeTab, setActiveTab] = useState<string>(defaultActiveTab || (tabs.length > 0 ? tabs[0].id : ''));
-
+  // If no activeTab is provided, use the first tab
+  const [activeTabState, setActiveTabState] = useState(externalActiveTab || tabs[0]?.id || '');
+  
+  // Update internal state when external activeTab changes
   useEffect(() => {
-    if (defaultActiveTab) {
-      setActiveTab(defaultActiveTab);
+    if (externalActiveTab && externalActiveTab !== activeTabState) {
+      setActiveTabState(externalActiveTab);
     }
-  }, [defaultActiveTab]);
+  }, [externalActiveTab]);
 
-  const handleTabClick = (tabId: string) => {
-    if (tabs.find(tab => tab.id === tabId)?.disabled) {
-      return;
-    }
+  // Handler for tab change
+  const handleTabChange = (tabId: string) => {
+    // Check if tab is disabled
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab?.disabled) return;
     
-    setActiveTab(tabId);
-    if (onChange) {
-      onChange(tabId);
-    }
+    setActiveTabState(tabId);
+    onChange(tabId);
   };
 
-  // Size-based classes
-  const sizeClasses = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-3 py-2 text-sm',
-    lg: 'px-4 py-3 text-base',
-  };
-
-  // Variant-based classes
-  const getTabClasses = (tabId: string, disabled?: boolean) => {
-    const isActive = activeTab === tabId;
-    const baseClasses = `focus:outline-none transition-colors font-medium ${sizeClasses[size]} ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`;
-    
+  // Determine style based on variant
+  const getVariantStyles = () => {
     switch (variant) {
       case 'pills':
-        return `${baseClasses} rounded-full ${isActive ? 'bg-primary text-white' : 'hover:bg-gray-100'}`;
+        return {
+          container: 'p-1 bg-gray-100 rounded-lg',
+          tab: 'rounded-md',
+          active: 'bg-white shadow',
+          hover: 'hover:bg-white/50',
+          disabled: 'opacity-50 cursor-not-allowed',
+        };
+      case 'buttons':
+        return {
+          container: 'space-x-2',
+          tab: 'border rounded-md',
+          active: 'border-blue-500 bg-blue-50 text-blue-600',
+          hover: 'hover:bg-gray-50',
+          disabled: 'opacity-50 cursor-not-allowed border-gray-200',
+        };
       case 'underline':
-        return `${baseClasses} ${isActive ? 'border-b-2 border-primary text-primary' : 'border-b-2 border-transparent hover:border-gray-300 text-gray-500 hover:text-gray-700'}`;
-      default: // 'default'
-        return `${baseClasses} rounded-t-lg ${isActive ? 'bg-white border-b-2 border-primary text-primary' : 'bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`;
+      default:
+        return {
+          container: 'border-b border-gray-200',
+          tab: 'border-b-2 border-transparent -mb-px',
+          active: 'border-blue-500 text-blue-600',
+          hover: 'hover:border-gray-300 hover:text-gray-600',
+          disabled: 'opacity-50 cursor-not-allowed',
+        };
     }
   };
 
-  // Flexbox container direction class
-  const containerClass = orientation === 'vertical' 
-    ? 'flex flex-col sm:flex-row' 
-    : 'flex flex-col';
+  // Determine size
+  const getSizeStyles = () => {
+    switch (size) {
+      case 'sm':
+        return 'text-sm px-2 py-1';
+      case 'lg':
+        return 'text-base px-5 py-3';
+      case 'md':
+      default:
+        return 'text-sm px-4 py-2';
+    }
+  };
 
-  // Tab list classes
-  const tabListClasses = orientation === 'vertical'
-    ? 'flex flex-col space-y-1 sm:w-48 sm:mr-4 border-r border-gray-200'
-    : `flex ${stretch ? 'w-full' : ''} ${variant === 'default' ? 'border-b border-gray-200' : ''}`;
-
-  // Tab content classes
-  const tabContentContainerClasses = orientation === 'vertical'
-    ? 'flex-1'
-    : 'pt-4';
-
-  // Get active tab content
-  const activeTabContent = tabs.find(tab => tab.id === activeTab)?.content;
+  const styles = getVariantStyles();
+  const sizeStyles = getSizeStyles();
 
   return (
-    <div className={`${containerClass} ${className}`}>
-      {/* Tab List */}
-      <div className={tabListClasses}>
+    <div className={className}>
+      {/* Tab navigation */}
+      <div className={`flex ${fullWidth ? 'w-full' : ''} ${styles.container}`}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`${getTabClasses(tab.id, tab.disabled)} flex items-center ${stretch && orientation === 'horizontal' ? 'flex-1 justify-center' : ''}`}
-            onClick={() => handleTabClick(tab.id)}
+            className={`
+              ${fullWidth ? 'flex-1' : ''}
+              ${sizeStyles}
+              ${styles.tab}
+              ${tab.id === activeTabState ? styles.active : styles.hover}
+              ${tab.disabled ? styles.disabled : ''}
+              flex items-center justify-center gap-2 transition-colors
+            `}
+            onClick={() => handleTabChange(tab.id)}
             disabled={tab.disabled}
+            aria-selected={tab.id === activeTabState}
             role="tab"
-            aria-selected={activeTab === tab.id}
-            aria-controls={`tabpanel-${tab.id}`}
           >
-            {tab.icon && <span className="mr-2">{tab.icon}</span>}
-            {tab.label}
+            {tab.icon && <span className="flex-shrink-0">{tab.icon}</span>}
+            <span>{tab.label}</span>
+            {tab.badge !== undefined && (
+              <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-xs font-medium rounded-full bg-gray-200">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div className={`${tabContentContainerClasses} ${contentClassName}`} role="tabpanel">
-        {activeTabContent}
-      </div>
+      {/* Tab content */}
+      {children && (
+        <div className={`mt-4 ${contentClassName}`}>
+          {children}
+        </div>
+      )}
     </div>
   );
 };
