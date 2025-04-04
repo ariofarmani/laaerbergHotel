@@ -1,236 +1,317 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 /**
- * Custom hook for managing local storage data with type safety
- * @param key - Storage key
- * @param initialValue - Initial value if key doesn't exist
- * @returns [storedValue, setValue] tuple
+ * Hook to manage a controlled form state
+ * @param initialValues Initial form values
+ * @returns Form state and handlers
  */
-export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  // State to store our value
+export const useForm = <T extends Record<string, any>>(initialValues: T) => {
+  const [values, setValues] = useState<T>(initialValues);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setValues({
+      ...values,
+      [name]: value,
+    });
+    // Clear error when field is changed
+    if (errors[name as keyof T]) {
+      setErrors({
+        ...errors,
+        [name]: '',
+      });
+    }
+  };
+
+  const handleReset = () => {
+    setValues(initialValues);
+    setErrors({});
+  };
+
+  return {
+    values,
+    setValues,
+    errors,
+    setErrors,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    handleReset,
+  };
+};
+
+/**
+ * Hook to manage local storage state
+ * @param key Storage key
+ * @param initialValue Initial value
+ * @returns State and setter
+ */
+export const useLocalStorage = <T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] => {
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === 'undefined') {
       return initialValue;
     }
-    
     try {
-      // Get from local storage by key
       const item = window.localStorage.getItem(key);
-      // Parse stored json or if none return initialValue
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      // If error return initialValue
-      console.error('Error reading from localStorage:', error);
+      console.error(error);
       return initialValue;
     }
   });
-  
-  // Return a wrapped version of useState's setter function that persists
-  // the new value to localStorage.
+
   const setValue = (value: T | ((val: T) => T)) => {
     try {
-      // Allow value to be a function so we have same API as useState
-      const valueToStore =
-        value instanceof Function ? value(storedValue) : value;
-      // Save state
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
-      // Save to local storage
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        // Dispatch a custom event so other components can subscribe
-        window.dispatchEvent(new Event('storage'));
       }
     } catch (error) {
-      console.error('Error writing to localStorage:', error);
+      console.error(error);
     }
   };
-  
-  // Watch for changes in other tabs/windows
-  useEffect(() => {
-    const handleStorageChange = () => {
-      try {
-        const item = window.localStorage.getItem(key);
-        if (item) {
-          setStoredValue(JSON.parse(item));
-        }
-      } catch (error) {
-        console.error('Error reading from localStorage in storage event:', error);
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [key]);
-  
+
   return [storedValue, setValue];
-}
+};
 
 /**
- * Custom hook for handling clickaway (click outside) detection
- * @param onClickAway - Callback function for when click outside happens
- * @returns Ref to attach to element
+ * Hook to track previous value of a state or prop
+ * @param value Current value
+ * @returns Previous value
  */
-export function useClickAway<T extends HTMLElement = HTMLElement>(
-  onClickAway: (event: MouseEvent | TouchEvent) => void
-) {
-  const ref = useRef<T>(null);
+export const usePrevious = <T>(value: T): T | undefined => {
+  const ref = useRef<T>();
   
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        onClickAway(event);
+    ref.current = value;
+  }, [value]);
+  
+  return ref.current;
+};
+
+/**
+ * Hook to manage query parameters in the URL
+ * @returns Functions to get, set, and remove query parameters
+ */
+export const useQueryParams = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+
+  const getParam = (key: string): string | null => {
+    return queryParams.get(key);
+  };
+
+  const getAllParams = (): Record<string, string> => {
+    const params: Record<string, string> = {};
+    queryParams.forEach((value, key) => {
+      params[key] = value;
+    });
+    return params;
+  };
+
+  const setParam = (key: string, value: string) => {
+    queryParams.set(key, value);
+    navigate({
+      pathname: location.pathname,
+      search: queryParams.toString()
+    });
+  };
+
+  const removeParam = (key: string) => {
+    queryParams.delete(key);
+    navigate({
+      pathname: location.pathname,
+      search: queryParams.toString()
+    });
+  };
+
+  const setParams = (params: Record<string, string>) => {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) {
+        queryParams.set(key, value);
+      } else {
+        queryParams.delete(key);
+      }
+    });
+    
+    navigate({
+      pathname: location.pathname,
+      search: queryParams.toString()
+    });
+  };
+
+  return {
+    getParam,
+    getAllParams,
+    setParam,
+    removeParam,
+    setParams,
+  };
+};
+
+/**
+ * Hook for handling API loading states with debouncing
+ * @param initialState Initial loading state
+ * @param delay Debounce delay in ms
+ * @returns Loading state and handlers
+ */
+export const useLoading = (initialState = false, delay = 300) => {
+  const [isLoading, setIsLoading] = useState(initialState);
+  const [error, setError] = useState<Error | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startLoading = useCallback(() => {
+    setError(null);
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    setIsLoading(true);
+  }, []);
+
+  const stopLoading = useCallback((err?: Error) => {
+    // Debounce the loading state change to prevent flashes
+    timerRef.current = setTimeout(() => {
+      setIsLoading(false);
+      if (err) {
+        setError(err);
+      }
+    }, delay);
+  }, [delay]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
       }
     };
-    
+  }, []);
+
+  return { isLoading, error, startLoading, stopLoading, setError };
+};
+
+/**
+ * Hook to detect clicks outside of a component
+ * @param callback Function to call on outside click
+ * @returns Ref to attach to the component
+ */
+export const useOutsideClick = (callback: () => void) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        callback();
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [onClickAway]);
-  
+  }, [callback]);
+
   return ref;
-}
+};
 
 /**
- * Custom hook for managing scroll position and direction
- * @returns Object with scroll information
- */
-export function useScroll() {
-  const [scrollInfo, setScrollInfo] = useState({
-    y: 0,
-    x: 0,
-    lastY: 0,
-    lastX: 0,
-    direction: {
-      x: '' as 'left' | 'right' | '',
-      y: '' as 'up' | 'down' | '',
-    },
-  });
-  
-  const handleScroll = useCallback(() => {
-    setScrollInfo((prev) => {
-      const newScrollInfo = {
-        y: window.scrollY,
-        x: window.scrollX,
-        lastY: prev.y,
-        lastX: prev.x,
-        direction: {
-          x: prev.x < window.scrollX ? 'right' : prev.x > window.scrollX ? 'left' : '',
-          y: prev.y < window.scrollY ? 'down' : prev.y > window.scrollY ? 'up' : '',
-        },
-      };
-      return newScrollInfo;
-    });
-  }, []);
-  
-  useEffect(() => {
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [handleScroll]);
-  
-  return scrollInfo;
-}
-
-/**
- * Custom hook for managing media queries
- * @param query - Media query string
- * @returns Boolean indicating if query matches
- */
-export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
-  
-  useEffect(() => {
-    const mediaQueryList = window.matchMedia(query);
-    const handleChange = (event: MediaQueryListEvent) => {
-      setMatches(event.matches);
-    };
-    
-    // Set initial state
-    setMatches(mediaQueryList.matches);
-    
-    // Use legacy or modern API depending on browser support
-    if (mediaQueryList.addEventListener) {
-      mediaQueryList.addEventListener('change', handleChange);
-      return () => mediaQueryList.removeEventListener('change', handleChange);
-    } else {
-      // Legacy browsers (Safari < 14)
-      mediaQueryList.addListener(handleChange);
-      return () => mediaQueryList.removeListener(handleChange);
-    }
-  }, [query]);
-  
-  return matches;
-}
-
-/**
- * Custom hook for debouncing a value
- * @param value - Value to debounce
- * @param delay - Delay in milliseconds
+ * Hook for debouncing values
+ * @param value Value to debounce
+ * @param delay Delay in ms
  * @returns Debounced value
  */
-export function useDebounce<T>(value: T, delay: number): T {
+export const useDebounce = <T>(value: T, delay = 500): T => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handler = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
-    
+
     return () => {
-      clearTimeout(timer);
+      clearTimeout(handler);
     };
   }, [value, delay]);
-  
+
   return debouncedValue;
-}
+};
 
 /**
- * Custom hook to check if component is mounted
- * @returns Ref that is true if component is mounted
+ * Hook for responsive design
+ * @returns Object with boolean flags for different screen sizes
  */
-export function useIsMounted() {
-  const isMounted = useRef(false);
-  
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-  
-  return isMounted;
-}
-
-/**
- * Custom hook for window size
- * @returns Current window dimensions
- */
-export function useWindowSize() {
+export const useResponsive = () => {
   const [windowSize, setWindowSize] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
-  
+
   useEffect(() => {
-    function handleResize() {
+    const handleResize = () => {
       setWindowSize({
         width: window.innerWidth,
         height: window.innerHeight,
       });
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
     }
-    
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
-  return windowSize;
-}
+
+  return {
+    isMobile: windowSize.width < 640,
+    isTablet: windowSize.width >= 640 && windowSize.width < 1024,
+    isDesktop: windowSize.width >= 1024,
+    width: windowSize.width,
+    height: windowSize.height,
+  };
+};
+
+/**
+ * Hook for pagination
+ * @param items Array of items to paginate
+ * @param itemsPerPage Number of items per page
+ * @returns Pagination state and handlers
+ */
+export const usePagination = <T>(items: T[], itemsPerPage: number) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+
+  const nextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const prevPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToPage = (page: number) => {
+    const pageNumber = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(pageNumber);
+  };
+
+  const currentItems = items.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  return {
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    goToPage,
+    currentItems,
+    setCurrentPage,
+  };
+};
