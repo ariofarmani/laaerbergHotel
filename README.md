@@ -1,102 +1,105 @@
-# Laaerberg Apart Hotel
+# 🏨 Laaerberg Apart Hotel
 
-A modern web application for the Laaerberg Apart Hotel, featuring apartment listings, reservations, and admin management.
+A modern hotel booking system for Laaerberg Apart Hotel in Vienna. This project includes a responsive web application for hotel guests to browse apartments, make reservations, and for staff to manage bookings.
 
-## 🏨 Project Overview
+## 📋 Project Structure
 
-This project consists of two main parts:
-- **Frontend**: React application built with TypeScript, React Router, Tailwind CSS
-- **Backend**: Node.js API using Express, DuckDB (in-memory database), and JWT authentication
+The project is divided into two main components:
 
-## 🚀 Running Locally
+- **Frontend**: A React application with TypeScript and Tailwind CSS
+- **Backend**: A Node.js API with Express and MongoDB (coming soon)
 
-### Backend Setup
+## 🚀 Features
 
-1. Install dependencies:
-   ```
-   cd backend
-   npm install
-   ```
+### 🌐 Guest Features
+- Browse available apartments with detailed information
+- Search and filter apartments by various criteria
+- Book apartments with a multi-step reservation process
+- Contact hotel staff through a contact form
+- Multilingual support (English, German)
+- Responsive design for all device sizes
 
-2. Start the development server:
-   ```
-   npm run dev
-   ```
-   The backend will run on http://localhost:5000
+### 👨‍💼 Admin Features
+- Secure admin login
+- Dashboard with statistics and recent reservations
+- Manage apartments (add, edit, delete)
+- Handle reservations (confirm, cancel)
+- Export data and reports
+
+## 🛠️ Technology Stack
+
+### Frontend
+- React 18 with TypeScript
+- React Router for navigation
+- Tailwind CSS for styling
+- i18next for internationalization
+- Axios for API communication
+
+### Backend (Coming Soon)
+- Node.js with Express
+- MongoDB for data storage
+- JWT for authentication
+- RESTful API design
+
+## 🏁 Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- npm or yarn
+- Git
 
 ### Frontend Setup
+1. Clone the repository
+```bash
+git clone https://github.com/ariofarmani/laaerbergHotel.git
+cd laaerbergHotel/frontend
+```
 
-1. Install dependencies:
-   ```
-   cd frontend
-   npm install
-   ```
+2. Install dependencies
+```bash
+npm install
+# or
+yarn install
+```
 
-2. Start the development server:
-   ```
-   npm start
-   ```
-   The frontend will run on http://localhost:3000
+3. Start the development server
+```bash
+npm start
+# or
+yarn start
+```
 
-## 📱 Features
+4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-- 🏠 **Home page**: Hotel information and promotional content
-- 🏨 **Apartments page**: Listing of available apartments
-- 🛌 **Apartment Detail page**: Detailed view of each apartment
-- 📅 **Reservation system**: Book apartments with date selection
-- 📝 **Contact page**: Contact form for inquiries
-- 👨‍💼 **Admin Dashboard**: Manage reservations and apartments
-- 🔐 **Authentication**: User and admin login
+For more detailed information about the frontend, check the [frontend README](/frontend/README.md).
 
-## 🌐 GitHub Pages Deployment
+### Backend Setup (Coming Soon)
+Information about setting up the backend will be added when it's available.
 
-The frontend is deployed on GitHub Pages and available at:
-https://ariofarmani.github.io/laaerbergHotel
+## 📱 Responsive Design
 
-To deploy updates to GitHub Pages:
+The application is designed to work seamlessly across all device sizes:
+- Mobile phones
+- Tablets
+- Desktops
+- Large screens
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/ariofarmani/laaerbergHotel.git
-   cd laaerbergHotel/frontend
-   ```
+## 🌐 Deployment
 
-2. Install dependencies and deploy:
-   ```
-   npm install
-   npm run deploy
-   ```
+Detailed deployment instructions will be provided in the future.
 
-> **Note**: The GitHub Pages deployment uses mock data since GitHub Pages cannot host the backend server. For full functionality, deploy the backend to a service like Heroku, Render, or Railway.
+## 🧪 Testing
 
-## 🔧 Backend Deployment
+```bash
+# Run frontend tests
+cd frontend
+npm test
+```
 
-For a complete working application, the backend needs to be deployed to a service that can run Node.js applications:
+## 👥 Contributors
 
-1. Create an account on a hosting platform like [Render](https://render.com), [Heroku](https://heroku.com), or [Railway](https://railway.app)
-   
-2. Follow their documentation to deploy the Node.js application from the `backend` folder
+- Ali Farmani
 
-3. Once deployed, update the API URL in `frontend/src/utils/api.ts` with your backend URL
+## 📄 License
 
-## 🔑 Admin Access
-
-For testing the admin features:
-- Email: admin@laaerberghotel.com
-- Password: admin123
-
-## 📚 Tech Stack
-
-- **Frontend**:
-  - React with TypeScript
-  - React Router for navigation
-  - Tailwind CSS for styling
-  - Formik & Yup for form validation
-  - React-i18next for internationalization
-  - Axios for API calls
-
-- **Backend**:
-  - Node.js with Express
-  - DuckDB for database
-  - JWT for authentication
-  - bcrypt for password hashing
+This project is licensed under the MIT License.
