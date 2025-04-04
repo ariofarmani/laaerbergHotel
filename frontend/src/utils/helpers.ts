@@ -1,87 +1,91 @@
 /**
- * Helper utility functions for the application
+ * Collection of helper functions for the application
  */
 
 /**
- * Formats a price value to a currency string
- * @param price - The price value to format
- * @param currency - The currency code (default: EUR)
- * @param locale - The locale code (default: de-DE)
+ * Format a date to a readable string
+ * @param date Date string or Date object
+ * @param format Format string (default: 'DD.MM.YYYY')
+ * @returns Formatted date string
+ */
+export const formatDate = (date: string | Date, format = 'DD.MM.YYYY'): string => {
+  if (!date) return '';
+  
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  
+  // Format the date based on the format string
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  
+  let result = format;
+  result = result.replace('DD', day);
+  result = result.replace('MM', month);
+  result = result.replace('YYYY', year.toString());
+  
+  return result;
+};
+
+/**
+ * Format a number as currency
+ * @param amount Number to format
+ * @param currency Currency code (default: 'EUR')
+ * @param locale Locale for formatting (default: 'de-AT')
  * @returns Formatted currency string
  */
 export const formatCurrency = (
-  price: number,
-  currency: string = 'EUR',
-  locale: string = 'de-DE'
+  amount: number, 
+  currency = 'EUR', 
+  locale = 'de-AT'
 ): string => {
+  if (isNaN(amount)) return '';
+  
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: currency,
-  }).format(price);
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 };
 
 /**
- * Formats a date string to a localized date string
- * @param dateString - The date string to format
- * @param locale - The locale code (default: en-US)
- * @param options - Date formatting options
- * @returns Formatted date string
- */
-export const formatDate = (
-  dateString: string,
-  locale: string = 'en-US',
-  options: Intl.DateTimeFormatOptions = { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  }
-): string => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat(locale, options).format(date);
-};
-
-/**
- * Calculates the number of nights between two dates
- * @param checkIn - Check-in date
- * @param checkOut - Check-out date
+ * Calculate number of nights between two dates
+ * @param checkIn Check-in date
+ * @param checkOut Check-out date
  * @returns Number of nights
  */
-export const calculateNights = (checkIn: Date, checkOut: Date): number => {
-  const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+export const calculateNights = (checkIn: Date | string, checkOut: Date | string): number => {
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+  
+  // Calculate the time difference in milliseconds
+  const timeDiff = checkOutDate.getTime() - checkInDate.getTime();
+  
+  // Convert to days
+  return Math.ceil(timeDiff / (1000 * 3600 * 24));
 };
 
 /**
- * Calculates the total price for a stay
- * @param pricePerNight - Price per night
- * @param checkIn - Check-in date
- * @param checkOut - Check-out date
+ * Calculate the total price for a stay
+ * @param nightPrice Price per night
+ * @param nights Number of nights
+ * @param discount Discount percentage (0-100)
  * @returns Total price
  */
 export const calculateTotalPrice = (
-  pricePerNight: number,
-  checkIn: Date,
-  checkOut: Date
+  nightPrice: number, 
+  nights: number, 
+  discount = 0
 ): number => {
-  const nights = calculateNights(checkIn, checkOut);
-  return pricePerNight * nights;
+  const subtotal = nightPrice * nights;
+  const discountAmount = subtotal * (discount / 100);
+  return subtotal - discountAmount;
 };
 
 /**
- * Truncates a string to a specified length and adds ellipsis
- * @param str - The string to truncate
- * @param length - Maximum length
- * @returns Truncated string with ellipsis if needed
- */
-export const truncateString = (str: string, length: number): string => {
-  if (str.length <= length) return str;
-  return str.slice(0, length) + '...';
-};
-
-/**
- * Generates a random ID
- * @returns Random ID string
+ * Generate a unique ID
+ * @returns A unique string ID
  */
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15) + 
@@ -89,120 +93,270 @@ export const generateId = (): string => {
 };
 
 /**
- * Parses URL query parameters
- * @param search - URL search string
- * @returns Object with query parameters
+ * Truncate a string to a maximum length
+ * @param text Text to truncate
+ * @param maxLength Maximum length
+ * @returns Truncated text
  */
-export const parseQueryParams = (search: string): Record<string, string> => {
-  if (!search || search === '?') return {};
-  
-  const params = new URLSearchParams(search.startsWith('?') ? search.substring(1) : search);
-  const result: Record<string, string> = {};
-  
-  params.forEach((value, key) => {
-    result[key] = value;
-  });
-  
-  return result;
+export const truncateText = (text: string, maxLength: number): string => {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 };
 
 /**
- * Builds URL query string from parameters object
- * @param params - Object with query parameters
- * @returns Query string starting with ?
+ * Validate an email address
+ * @param email Email to validate
+ * @returns True if email is valid
  */
-export const buildQueryString = (params: Record<string, any>): string => {
-  const searchParams = new URLSearchParams();
-  
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      searchParams.append(key, String(value));
-    }
-  });
-  
-  const queryString = searchParams.toString();
-  return queryString ? `?${queryString}` : '';
+export const isValidEmail = (email: string): boolean => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
 };
 
 /**
- * Debounce function to limit how often a function is called
- * @param func - Function to debounce
- * @param wait - Wait time in milliseconds
+ * Validate a phone number
+ * @param phone Phone number to validate
+ * @returns True if phone is valid
+ */
+export const isValidPhone = (phone: string): boolean => {
+  // Accept various formats with optional country code
+  const regex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,3}[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,4}$/;
+  return regex.test(phone);
+};
+
+/**
+ * Debounce a function
+ * @param func Function to debounce
+ * @param wait Wait time in milliseconds
  * @returns Debounced function
  */
-export const debounce = <F extends (...args: any[]) => any>(
-  func: F,
-  wait: number
-): ((...args: Parameters<F>) => void) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait = 300
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout | null = null;
   
-  return function(...args: Parameters<F>) {
+  return function(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+    
     if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
+    timeout = setTimeout(later, wait);
   };
 };
 
 /**
- * Get days of the week, starting from Monday
- * @param locale - The locale code (default: en-US)
- * @returns Array of weekday names
+ * Throttle a function
+ * @param func Function to throttle
+ * @param limit Limit time in milliseconds
+ * @returns Throttled function
  */
-export const getWeekdays = (locale: string = 'en-US'): string[] => {
-  const weekdays = [];
-  const date = new Date(2021, 10, 1); // Use a Monday
+export const throttle = <T extends (...args: any[]) => any>(
+  func: T, 
+  limit = 300
+): ((...args: Parameters<T>) => void) => {
+  let inThrottle = false;
   
-  for (let i = 0; i < 7; i++) {
-    weekdays.push(
-      new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
-    );
-    date.setDate(date.getDate() + 1);
+  return function(...args: Parameters<T>) {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
+    }
+  };
+};
+
+/**
+ * Deep clone an object
+ * @param obj Object to clone
+ * @returns Cloned object
+ */
+export const deepClone = <T>(obj: T): T => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
   }
   
-  return weekdays;
+  return JSON.parse(JSON.stringify(obj));
 };
 
 /**
- * Validates an email address format
- * @param email - Email address to validate
- * @returns Boolean indicating if email is valid
+ * Get query parameters from a URL
+ * @param url URL string
+ * @returns Object with query parameters
  */
-export const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+export const getQueryParams = (url: string): Record<string, string> => {
+  const params: Record<string, string> = {};
+  const urlObj = new URL(url, window.location.origin);
+  const searchParams = new URLSearchParams(urlObj.search);
+  
+  for (const [key, value] of searchParams.entries()) {
+    params[key] = value;
+  }
+  
+  return params;
 };
 
 /**
- * Adds days to a date
- * @param date - Starting date
- * @param days - Number of days to add
+ * Build a query string from an object
+ * @param params Object with parameters
+ * @returns Query string
+ */
+export const buildQueryString = (params: Record<string, any>): string => {
+  const query = Object.entries(params)
+    .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+  
+  return query ? `?${query}` : '';
+};
+
+/**
+ * Remove HTML tags from a string
+ * @param html HTML string
+ * @returns Clean text
+ */
+export const stripHtml = (html: string): string => {
+  const tmp = document.createElement('DIV');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
+/**
+ * Safely access nested object properties
+ * @param obj Object to access
+ * @param path Path to property (e.g. 'user.address.city')
+ * @param defaultValue Default value if property doesn't exist
+ * @returns Property value or default
+ */
+export const getNestedValue = (
+  obj: Record<string, any>,
+  path: string,
+  defaultValue = undefined
+): any => {
+  const keys = path.split('.');
+  let current = obj;
+  
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return defaultValue;
+    }
+    current = current[key];
+  }
+  
+  return current === undefined ? defaultValue : current;
+};
+
+/**
+ * Download data as a file
+ * @param data Data to download
+ * @param filename Filename
+ * @param type MIME type
+ */
+export const downloadFile = (
+  data: string, 
+  filename: string, 
+  type = 'text/plain'
+): void => {
+  const blob = new Blob([data], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
+};
+
+/**
+ * Scroll to an element
+ * @param elementId Element ID
+ * @param offset Offset from the top
+ * @param behavior Scroll behavior
+ */
+export const scrollToElement = (
+  elementId: string, 
+  offset = 0, 
+  behavior: ScrollBehavior = 'smooth'
+): void => {
+  const element = document.getElementById(elementId);
+  
+  if (element) {
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - offset;
+    
+    window.scrollTo({
+      top: offsetPosition,
+      behavior,
+    });
+  }
+};
+
+/**
+ * Check if a date is in the past
+ * @param date Date to check
+ * @returns True if date is in the past
+ */
+export const isDateInPast = (date: Date | string): boolean => {
+  const checkDate = new Date(date);
+  const today = new Date();
+  
+  // Reset hours to compare just the date
+  today.setHours(0, 0, 0, 0);
+  checkDate.setHours(0, 0, 0, 0);
+  
+  return checkDate < today;
+};
+
+/**
+ * Check if a date is in the future
+ * @param date Date to check
+ * @returns True if date is in the future
+ */
+export const isDateInFuture = (date: Date | string): boolean => {
+  const checkDate = new Date(date);
+  const today = new Date();
+  
+  // Reset hours to compare just the date
+  today.setHours(0, 0, 0, 0);
+  checkDate.setHours(0, 0, 0, 0);
+  
+  return checkDate > today;
+};
+
+/**
+ * Add days to a date
+ * @param date Base date
+ * @param days Number of days to add
  * @returns New date
  */
-export const addDaysToDate = (date: Date, days: number): Date => {
+export const addDays = (date: Date | string, days: number): Date => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
 };
 
 /**
- * Checks if a date is in the past
- * @param date - Date to check
- * @returns Boolean indicating if date is in the past
+ * Convert object to FormData
+ * @param obj Object to convert
+ * @returns FormData object
  */
-export const isDateInPast = (date: Date): boolean => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-/**
- * Gets a list of years for selection dropdowns
- * @param startYear - Starting year (default: current year)
- * @param numberOfYears - Number of years to include (default: 10)
- * @returns Array of years
- */
-export const getYearOptions = (
-  startYear: number = new Date().getFullYear(),
-  numberOfYears: number = 10
-): number[] => {
-  return Array.from({ length: numberOfYears }, (_, i) => startYear + i);
+export const objectToFormData = (obj: Record<string, any>): FormData => {
+  const formData = new FormData();
+  
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value !== null && value !== undefined) {
+      formData.append(key, value);
+    }
+  });
+  
+  return formData;
 };
