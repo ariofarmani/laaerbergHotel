@@ -1,96 +1,124 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { FaHome, FaChevronRight } from 'react-icons/fa';
+import { FaChevronRight, FaHome } from 'react-icons/fa';
+
+export interface BreadcrumbItem {
+  label: string;
+  path: string;
+  icon?: React.ReactNode;
+}
 
 interface BreadcrumbsProps {
-  className?: string;
+  items?: BreadcrumbItem[];
   showHome?: boolean;
-  homeIcon?: boolean;
+  homeLabel?: string;
+  homePath?: string;
   separator?: React.ReactNode;
-  items?: Array<{
-    label: string;
-    href?: string;
-  }>;
+  className?: string;
+  maxItems?: number;
 }
 
 const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
-  className = '',
+  items,
   showHome = true,
-  homeIcon = true,
-  separator = <FaChevronRight className="mx-2 text-gray-400" size={10} />,
-  items = [],
+  homeLabel = 'Home',
+  homePath = '/',
+  separator = <FaChevronRight className="mx-2 text-gray-400 text-xs" />,
+  className = '',
+  maxItems = 0,
 }) => {
-  const { t } = useTranslation();
   const location = useLocation();
   
-  // If no items are provided, generate them from the current path
-  const breadcrumbItems = items.length
-    ? items
-    : location.pathname
-        .split('/')
-        .filter(Boolean)
-        .map((path, index, array) => {
-          // Start building the path
-          let href = '';
-          for (let i = 0; i <= index; i++) {
-            href += `/${array[i]}`;
-          }
-          
-          // Format the label (capitalize first letter, replace hyphens with spaces)
-          const label = path
-            .replace(/-/g, ' ')
-            .replace(/^\w/, (c) => c.toUpperCase());
-          
-          return {
-            label,
-            href,
-          };
-        });
+  // If no items provided, generate from current path
+  const breadcrumbs = items || generateBreadcrumbs(location.pathname);
   
-  // Add home if requested
-  const allItems = showHome
-    ? [{ label: homeIcon ? '' : t('breadcrumbs.home', 'Home'), href: '/' }, ...breadcrumbItems]
-    : breadcrumbItems;
+  // Add home item if showHome is true
+  const allItems = showHome 
+    ? [{ label: homeLabel, path: homePath, icon: <FaHome /> }, ...breadcrumbs] 
+    : breadcrumbs;
   
-  if (allItems.length === 0) return null;
+  // Limit items if maxItems is provided
+  const displayedItems = maxItems > 0 && allItems.length > maxItems
+    ? [
+        ...allItems.slice(0, maxItems - 1),
+        allItems[allItems.length - 1]
+      ]
+    : allItems;
+  
+  // If truncated, add ellipsis
+  const isTruncated = maxItems > 0 && allItems.length > maxItems;
   
   return (
-    <nav aria-label="Breadcrumb" className={`text-sm ${className}`}>
-      <ol className="flex flex-wrap items-center">
-        {allItems.map((item, index) => {
-          const isLast = index === allItems.length - 1;
+    <nav className={`flex items-center text-sm ${className}`} aria-label="Breadcrumb">
+      <ol className="flex items-center flex-wrap">
+        {displayedItems.map((item, index) => {
+          const isLast = index === displayedItems.length - 1;
+          
+          // If truncated and this is the first item after truncation, show ellipsis
+          const showEllipsis = isTruncated && index === maxItems - 1 && index !== 0;
           
           return (
-            <li key={index} className="flex items-center">
-              {index > 0 && separator}
-              
-              {isLast ? (
-                <span className="font-medium text-gray-500" aria-current="page">
-                  {item.label === '' && homeIcon ? (
-                    <FaHome className="text-gray-500" aria-label={t('breadcrumbs.home', 'Home')} />
-                  ) : (
-                    item.label
-                  )}
-                </span>
-              ) : (
-                <Link
-                  to={item.href || '#'}
-                  className="text-gray-600 hover:text-primary"
-                >
-                  {item.label === '' && homeIcon ? (
-                    <FaHome aria-label={t('breadcrumbs.home', 'Home')} />
-                  ) : (
-                    item.label
-                  )}
-                </Link>
+            <React.Fragment key={item.path}>
+              {showEllipsis && (
+                <li className="flex items-center">
+                  {separator}
+                  <span className="text-gray-500 mx-2">...</span>
+                </li>
               )}
-            </li>
+              <li className="flex items-center">
+                {index > 0 && separator}
+                {isLast ? (
+                  <span className="font-medium text-gray-800 flex items-center">
+                    {item.icon && <span className="mr-1">{item.icon}</span>}
+                    {item.label}
+                  </span>
+                ) : (
+                  <Link 
+                    to={item.path} 
+                    className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
+                  >
+                    {item.icon && <span className="mr-1">{item.icon}</span>}
+                    {item.label}
+                  </Link>
+                )}
+              </li>
+            </React.Fragment>
           );
         })}
       </ol>
     </nav>
   );
+};
+
+// Helper function to generate breadcrumbs from path
+const generateBreadcrumbs = (path: string): BreadcrumbItem[] => {
+  // Remove trailing slash
+  const cleanPath = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
+  
+  // Split path into segments
+  const segments = cleanPath.split('/').filter(Boolean);
+  
+  // Build breadcrumbs
+  const breadcrumbs: BreadcrumbItem[] = [];
+  let currentPath = '';
+  
+  segments.forEach((segment, index) => {
+    // Build current path
+    currentPath += `/${segment}`;
+    
+    // Format label (capitalize and replace hyphens with spaces)
+    const label = segment
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    breadcrumbs.push({
+      label,
+      path: currentPath,
+    });
+  });
+  
+  return breadcrumbs;
 };
 
 export default Breadcrumbs;
